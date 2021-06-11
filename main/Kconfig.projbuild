@@ -1,0 +1,22 @@
+menu "Rotom Controller Configuration"
+
+    menu "JOYSTICK"
+        config JOYSTICK_AXIS_X
+            int "Joystick Position of X-axis"
+            default 6
+            help
+                GPIO number for ADC line (0-9).
+
+        config JOYSTICK_AXIS_Y
+            int "Joystick Position of Y-axis"
+            default 7
+            help
+                GPIO number for ADC line (0-9).
+        
+        config JOYSTICK_BUTTON
+            int "Joystick button"
+            default 32
+            help
+                GPIO number for external interrupt.
+    endmenu
+endmenu
