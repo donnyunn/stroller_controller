@@ -9,6 +9,7 @@ typedef struct {
 
     xQueueHandle pos_queue;
     xQueueHandle btn_queue;
+    SemaphoreHandle_t xSemaphore;
 } joystick_t;
 
 void joystick_init(joystick_t * joystick);

@@ -62,7 +62,7 @@ static esp_ble_scan_params_t ble_scan_params = {
     .scan_duplicate         = BLE_SCAN_DUPLICATE_DISABLE
 };
 
-static const char device_name[] = "ESP_SPP_SERVER";
+static const char device_name[] = "INNOM";
 static bool is_connect = false;
 static uint16_t spp_conn_id = 0;
 static uint16_t spp_mtu_size = 23;
@@ -189,7 +189,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             break;
         }
         //the unit of the duration is second
-        uint32_t duration = 0xFFFF;
+        uint32_t duration = 0xffff;
         ESP_LOGI(TAG, "Enable Ble Scan:during time 0x%04X minutes.",duration);
         esp_ble_gap_start_scanning(duration);
         break;
@@ -518,61 +518,9 @@ void ble_client_appRegister(void)
 #endif
 }
 
-void uart_task(void *pvParameters)
+bool ble_spp_isConnected(void)
 {
-    uart_event_t event;
-    for (;;) {
-        //Waiting for UART event.
-        if (xQueueReceive(spp_uart_queue, (void * )&event, (portTickType)portMAX_DELAY)) {
-            switch (event.type) {
-            //Event of UART receving data
-            case UART_DATA:
-                if (event.size && (is_connect == true) && (db != NULL) && ((db+SPP_IDX_SPP_DATA_RECV_VAL)->properties & (ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_WRITE))) {
-                    uint8_t * temp = NULL;
-                    temp = (uint8_t *)malloc(sizeof(uint8_t)*event.size);
-                    if(temp == NULL){
-                        ESP_LOGE(TAG, "malloc failed,%s L#%d\n", __func__, __LINE__);
-                        break;
-                    }
-                    memset(temp, 0x0, event.size);
-                    uart_read_bytes(UART_NUM_0,temp,event.size,portMAX_DELAY);
-                    esp_ble_gattc_write_char( spp_gattc_if,
-                                              spp_conn_id,
-                                              (db+SPP_IDX_SPP_DATA_RECV_VAL)->attribute_handle,
-                                              event.size,
-                                              temp,
-                                              ESP_GATT_WRITE_TYPE_RSP,
-                                              ESP_GATT_AUTH_REQ_NONE);
-                    free(temp);
-                }
-                break;
-            default:
-                break;
-            }
-        }
-    }
-    vTaskDelete(NULL);
-}
-
-static void spp_uart_init(void)
-{
-    uart_config_t uart_config = {
-        .baud_rate = 115200,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_RTS,
-        .rx_flow_ctrl_thresh = 122,
-        .source_clk = UART_SCLK_APB,
-    };
-
-    //Install UART driver, and get the queue.
-    uart_driver_install(UART_NUM_0, 4096, 8192, 10, &spp_uart_queue, 0);
-    //Set UART parameters
-    uart_param_config(UART_NUM_0, &uart_config);
-    //Set UART pins
-    uart_set_pin(UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    xTaskCreate(uart_task, "uTask", 2048, (void*)UART_NUM_0, 8, NULL);
+    return is_connect;
 }
 
 void ble_spp_send(uint8_t * data, uint16_t len)
@@ -621,5 +569,4 @@ void ble_spp_client_init(void)
     }
  
     ble_client_appRegister();
-    spp_uart_init();
 }
