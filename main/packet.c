@@ -31,10 +31,10 @@ void packet_encoding(packet_t type, uint8_t* packet, uint32_t btn, int x, int y)
                 packet[5] = 0;
                 break;
             }
-            packet[6] = (x & 0xff00) >> 8;
-            packet[7] = (x & 0x00ff) >> 0;
-            packet[8] = (y & 0xff00) >> 8;
-            packet[9] = (y & 0x00ff) >> 0;
+            packet[6] = (x & 0x00ff) >> 0;
+            packet[7] = (x & 0xff00) >> 8;
+            packet[8] = (y & 0x00ff) >> 0;
+            packet[9] = (y & 0xff00) >> 8;
         break;
     }
 }
