@@ -45,6 +45,7 @@ typedef enum {
 } ALERT;
 
 TaskHandle_t xHandle;
+bool isReady = true;
 
 /**
  * @brief i2c master initialization
@@ -59,6 +60,7 @@ static esp_err_t i2c_master_init(void)
     conf.scl_io_num = I2C_MASTER_SCL_IO;
     conf.scl_pullup_en = GPIO_PULLUP_DISABLE;
     conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
+    conf.clk_flags = 0;
     i2c_param_config(i2c_master_port, &conf);
     return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
 }
@@ -123,33 +125,37 @@ uint8_t version(void) {
 
 void max17048_task(void *arg)
 {
+    uint8_t value = 0;
     for (;;) {
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-        leds_battery_indicator(BATT_INDICATOR_OFF);
-        vTaskDelete(xHandle);
+        if (!isReady) {
+            value = percent();
+            ESP_LOGI(TAG, "SOC = %d %%", value);
+            if (value <= 25) {
+                leds_battery_indicator(BATT_25PER);
+            } else if (value <= 50) {
+                leds_battery_indicator(BATT_50PER);
+            } else if (value <= 75) {
+                leds_battery_indicator(BATT_75PER);
+            } else {
+                leds_battery_indicator(BATT_100PER);
+            }
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
+            leds_battery_indicator(BATT_INDICATOR_OFF);
+            isReady = true;
+        } else {
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+        }
+        // vTaskDelete(xHandle);
     }
 }
 
-esp_err_t max17048_led_indicator(void)
+void max17048_led_indicator(void)
 {
-    esp_err_t ret = ESP_OK;
-    uint8_t value = 0;
-    
-    value = percent();
-    if (value <= 25) {
-        leds_battery_indicator(BATT_25PER);
-    } else if (value <= 50) {
-        leds_battery_indicator(BATT_50PER);
-    } else if (value <= 75) {
-        leds_battery_indicator(BATT_75PER);
-    } else {
-        leds_battery_indicator(BATT_100PER);
+    ESP_LOGI(TAG, "ready (%d)", isReady);
+    if (isReady) {
+        isReady = false;
+        // xTaskCreate(max17048_task, "max17048_task", configMINIMAL_STACK_SIZE, NULL, 10, &xHandle);
     }
-    ESP_LOGI(TAG, "%d", value);
-
-    xTaskCreate(max17048_task, "max17048_task", 2048, NULL, 10, &xHandle);
-
-    return ret;
 }
 
 void max17048_init(void)
@@ -160,7 +166,7 @@ void max17048_init(void)
     i2c_master_init();
     max17048_version = version();
     ESP_LOGI(TAG, "max17048 version: %02X", max17048_version);
-    // if (max17048_version != 0xff) {
-    //     xTaskCreate(max17048_task, "max17048_task", 2048, (void *) 0, 10, NULL);
-    // }
+    if (max17048_version != 0xff) {
+        xTaskCreate(max17048_task, "max17048_task", 2048, (void *) 0, 10, NULL);
+    }
 }
