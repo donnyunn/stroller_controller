@@ -3,7 +3,7 @@
 void packet_encoding(packet_t type, uint8_t* packet, uint32_t btn, int x, int y)
 {
     static uint8_t cnt = 0;
-    static uint16_t button_map = 0x0000;
+    // static uint16_t button_map = 0x0000;
 
     switch (type) {
         case PACKET_LIVE_CHECK:

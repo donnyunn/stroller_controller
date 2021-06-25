@@ -20,6 +20,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "sdkconfig.h"
+#include "esp_sleep.h"
 
 #include "ble_spp_client.h"
 #include "joystick.h"

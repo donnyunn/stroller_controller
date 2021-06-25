@@ -217,12 +217,12 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         esp_ble_gap_cb_param_t *scan_result = (esp_ble_gap_cb_param_t *)param;
         switch (scan_result->scan_rst.search_evt) {
         case ESP_GAP_SEARCH_INQ_RES_EVT:
-            esp_log_buffer_hex(TAG, scan_result->scan_rst.bda, 6);
-            ESP_LOGI(TAG, "Searched Adv Data Len %d, Scan Response Len %d", scan_result->scan_rst.adv_data_len, scan_result->scan_rst.scan_rsp_len);
+            // esp_log_buffer_hex(TAG, scan_result->scan_rst.bda, 6);
+            // ESP_LOGI(TAG, "Searched Adv Data Len %d, Scan Response Len %d", scan_result->scan_rst.adv_data_len, scan_result->scan_rst.scan_rsp_len);
             adv_name = esp_ble_resolve_adv_data(scan_result->scan_rst.ble_adv, ESP_BLE_AD_TYPE_NAME_CMPL, &adv_name_len);
-            ESP_LOGI(TAG, "Searched Device Name Len %d", adv_name_len);
-            esp_log_buffer_char(TAG, adv_name, adv_name_len);
-            ESP_LOGI(TAG, "\n");
+            // ESP_LOGI(TAG, "Searched Device Name Len %d", adv_name_len);
+            // esp_log_buffer_char(TAG, adv_name, adv_name_len);
+            // ESP_LOGI(TAG, "\n");
             if (adv_name != NULL) {
                 if ( strncmp((char *)adv_name, device_name, adv_name_len) == 0) {
                     memcpy(&(scan_rst), scan_result, sizeof(esp_ble_gap_cb_param_t));
@@ -534,6 +534,11 @@ void ble_spp_send(uint8_t * data, uint16_t len)
                             ESP_GATT_WRITE_TYPE_RSP,
                             ESP_GATT_AUTH_REQ_NONE);
     }    
+}
+
+void ble_spp_stop(void)
+{
+    esp_ble_gap_stop_scanning();
 }
 
 void ble_spp_client_init(void)

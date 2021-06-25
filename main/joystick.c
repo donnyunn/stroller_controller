@@ -56,7 +56,7 @@ void joystick_init(joystick_t * joystick)
     ESP_LOGI(TAG, "%s", __func__);
 
     this = joystick;
-    this->pos_queue = xQueueCreate(10, sizeof(int)*2);
+    this->pos_queue = xQueueCreate(128, sizeof(int)*2);
     this->btn_queue = xQueueCreate(10, sizeof(uint32_t));
     this->xSemaphore = xSemaphoreCreateBinary();
 

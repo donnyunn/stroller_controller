@@ -22,6 +22,7 @@ typedef enum {
     WORK_SCANNING,
     WORK_CONNECTED,
     WORK_IDLE,
+    WORK_SLEEP,
 } main_work_t;
 
 main_work_t work = WORK_INIT;
@@ -79,6 +80,7 @@ void app_main(void)
     uint32_t joystick_btn;
     uint32_t pairing_btn;
     static int pairing_btn_cnt;
+    static int scanning_cnt;
 
     nvs_flash_init();
 
@@ -95,6 +97,8 @@ void app_main(void)
 
                 ble_spp_client_init();
                 leds_ble_indicator(BLE_INDIC_BLINK_START);
+
+                scanning_cnt = 0;
                 work = WORK_SCANNING;
             break;
             case WORK_SCANNING:
@@ -102,6 +106,17 @@ void app_main(void)
                     leds_ble_indicator(BLE_INDIC_BLINK_STOP);
                     leds_ble_indicator(BLE_INDIC_ON);
                     work = WORK_CONNECTED;
+                } else {
+                    ESP_LOGI(TAG, "%d", scanning_cnt);
+                    if (++scanning_cnt > 5000) {
+                        scanning_cnt = 0;
+                        leds_ble_indicator(BLE_INDIC_BLINK_STOP);
+                        leds_ble_indicator(BLE_INDIC_OFF);
+                        ESP_LOGI(TAG, "No Device to connect!");
+
+                        ble_spp_stop();
+                        work = WORK_IDLE;
+                    }
                 }
             break;
             case WORK_CONNECTED:
@@ -129,30 +144,26 @@ void app_main(void)
                 if (xQueueReceive(button_queue, &pairing_btn, 10/portTICK_RATE_MS)) {
                     max17048_led_indicator();
                 }
-                if (isPairingPressed()) {
-                    ESP_LOGI(TAG, "%d", pairing_btn_cnt);
-                    if (++pairing_btn_cnt > 100) {
-                        pairing_btn_cnt = 0;
-                        work = WORK_IDLE;
-                    }
-                } else {
-                    pairing_btn_cnt = 0;
-                }
-                if (!ble_spp_isConnected()) {
-                    work = WORK_IDLE;
-                }
 
                 if (joystick.xSemaphore != NULL) {
+                    if (xSemaphoreTake(joystick.xSemaphore, (TickType_t)10) == pdTRUE) {
+                        if (!ble_spp_isConnected()) {
+                            leds_ble_indicator(BLE_INDIC_OFF);
+                            ESP_LOGI(TAG, "Disconnection detected!");
+                            
+                            ble_spp_stop();
+                            work = WORK_IDLE;
+                        } else {
+                            xSemaphoreGive(joystick.xSemaphore);
+                        }
+                    }
+
                     if (isBrakePressed()) {
                         if (xSemaphoreTake(joystick.xSemaphore, (TickType_t)10) == pdTRUE) {
                             while (isBrakePressed()) {
                                 ESP_LOGI(TAG, "brake!");
                                 packet_encoding(PACKET_USER_OPERATION, tx, CONFIG_BRAKE_BUTTON, joystick_pos[0], joystick_pos[1]);
                                 ble_spp_send((uint8_t*)tx, 10);
-                                // for (int i = 0; i < 10; i++) {
-                                //     sprintf(monitor+(2*i), "%02x", tx[i]);
-                                // }
-                                // ble_spp_send((uint8_t*)monitor, 21);
                                 vTaskDelay(100/portTICK_PERIOD_MS);
                             }
                             xSemaphoreGive(joystick.xSemaphore);
@@ -164,10 +175,30 @@ void app_main(void)
 
             break;
             case WORK_IDLE:
-                vTaskDelay(1000/portTICK_PERIOD_MS);
-                esp_restart();
+                ESP_LOGI(TAG, "Entering Sleep Mode");
+                vTaskDelay(100/portTICK_PERIOD_MS);
+                gpio_intr_disable(CONFIG_PAIRING_BUTTON);
+                gpio_wakeup_enable(CONFIG_PAIRING_BUTTON, GPIO_INTR_LOW_LEVEL);
+                esp_sleep_enable_gpio_wakeup();
+                esp_light_sleep_start();
+                work = WORK_SLEEP;
+            break;
+            case WORK_SLEEP:
+                if (isPairingPressed()) {
+                    ESP_LOGI(TAG, "%d", pairing_btn_cnt);
+                    if (++pairing_btn_cnt > 100) {
+                        pairing_btn_cnt = 0;
+                        leds_ble_indicator(BLE_INDIC_OFF);
+
+                        esp_restart();
+                    }
+                } else {
+                    pairing_btn_cnt = 0;
+                    work = WORK_IDLE;
+                }
             break;
         }
+        
         vTaskDelay(10/portTICK_PERIOD_MS);
     }
 }
