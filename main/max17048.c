@@ -110,6 +110,7 @@ float voltage(void) {
 uint8_t percent(void) {
     uint16_t data;
     max17048_read(REG_SOC, &data);
+    ESP_LOGI(TAG, "data= %04x", data);
     return (uint8_t)(data / 256);
 }
 
@@ -129,7 +130,7 @@ void max17048_task(void *arg)
     for (;;) {
         if (!isReady) {
             value = percent();
-            ESP_LOGI(TAG, "SOC = %d %%", value);
+            ESP_LOGW(TAG, "SOC = %d %%", value);
             if (value <= 25) {
                 leds_battery_indicator(BATT_25PER);
             } else if (value <= 50) {
@@ -161,12 +162,16 @@ void max17048_led_indicator(void)
 void max17048_init(void)
 {
     uint8_t max17048_version;
+    esp_err_t err;
     leds_battery_indicator(BATT_INDICATOR_OFF);
 
-    i2c_master_init();
+    err = i2c_master_init();
+    ESP_LOGI(TAG, "i2c master init err (%d)", err);
     max17048_version = version();
-    ESP_LOGI(TAG, "max17048 version: %02X", max17048_version);
+    ESP_LOGW(TAG, "max17048 version: %02X", max17048_version);
     if (max17048_version != 0xff) {
         xTaskCreate(max17048_task, "max17048_task", 2048, (void *) 0, 10, NULL);
+    } else {
+        ESP_LOGE(TAG, "max17048 init fail!!");
     }
 }

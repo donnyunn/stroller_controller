@@ -90,13 +90,13 @@ void app_main(void)
                 memset(tx, 0x00, sizeof(tx));
                 memset(monitor, 0x00, sizeof(monitor));
 
-                button_init();
-                leds_init();
-                joystick_init(&joystick);
-                max17048_init();
-
                 ble_spp_client_init();
                 leds_ble_indicator(BLE_INDIC_BLINK_START);
+
+                button_init();
+                leds_init();
+                max17048_init();
+                joystick_init(&joystick);
 
                 scanning_cnt = 0;
                 work = WORK_SCANNING;
@@ -117,6 +117,9 @@ void app_main(void)
                         ble_spp_stop();
                         work = WORK_IDLE;
                     }
+                }
+                if (xQueueReceive(button_queue, &pairing_btn, 10/portTICK_RATE_MS)) {
+                    max17048_led_indicator();
                 }
             break;
             case WORK_CONNECTED:
@@ -190,11 +193,15 @@ void app_main(void)
                         pairing_btn_cnt = 0;
                         leds_ble_indicator(BLE_INDIC_OFF);
 
-                        esp_restart();
+                        // esp_restart();
+                        work = WORK_SCANNING;
                     }
                 } else {
                     pairing_btn_cnt = 0;
                     work = WORK_IDLE;
+                }
+                if (xQueueReceive(button_queue, &pairing_btn, 10/portTICK_RATE_MS)) {
+                    max17048_led_indicator();
                 }
             break;
         }

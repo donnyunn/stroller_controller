@@ -64,11 +64,11 @@ void joystick_init(joystick_t * joystick)
     adc1_config_channel_atten(X_AXIS_CHANNEL, ADC_ATTEN_DB_11);
     adc1_config_channel_atten(Y_AXIS_CHANNEL, ADC_ATTEN_DB_11);
 
-    io_conf.intr_type = GPIO_PIN_INTR_POSEDGE;
+    io_conf.intr_type = GPIO_PIN_INTR_NEGEDGE;
     io_conf.pin_bit_mask = (1ULL<<LED_IO);
     io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pull_down_en = 1;
-    io_conf.pull_up_en = 0;
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 1;
     gpio_config(&io_conf);
 
     // gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
