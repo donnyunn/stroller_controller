@@ -7,9 +7,9 @@
 
 #define TAG "JOYSTICK"
 
-#define X_AXIS_CHANNEL      CONFIG_JOYSTICK_AXIS_X
-#define Y_AXIS_CHANNEL      CONFIG_JOYSTICK_AXIS_Y
-#define LED_IO              CONFIG_JOYSTICK_BUTTON
+#define X_AXIS_CHANNEL      6
+#define Y_AXIS_CHANNEL      7
+#define LED_IO              32
 
 #define SAMPLING_NUM 128
 
@@ -18,7 +18,7 @@ static joystick_t * this = NULL;
 static void IRAM_ATTR joystick_isr_handler(void* arg)
 {
     uint32_t gpio_num = (uint32_t) arg;
-    if (gpio_get_level(gpio_num)) {
+    if (!gpio_get_level(gpio_num)) {
         xQueueSendFromISR(this->btn_queue, &gpio_num, NULL);
     }
 }

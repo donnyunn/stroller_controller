@@ -107,7 +107,7 @@ void app_main(void)
                     leds_ble_indicator(BLE_INDIC_ON);
                     work = WORK_CONNECTED;
                 } else {
-                    ESP_LOGI(TAG, "%d", scanning_cnt);
+                    // ESP_LOGI(TAG, "%d", scanning_cnt);
                     if (++scanning_cnt > 5000) {
                         scanning_cnt = 0;
                         leds_ble_indicator(BLE_INDIC_BLINK_STOP);
@@ -123,26 +123,14 @@ void app_main(void)
                 }
             break;
             case WORK_CONNECTED:
+                if (xQueueReceive(joystick.btn_queue, &joystick_btn, 10/portTICK_RATE_MS)) {
+                    ESP_LOGI(TAG, "LED!");
+                    packet_encoding(PACKET_USER_OPERATION, tx, joystick_btn, joystick_pos[0], joystick_pos[1]);
+                    ble_spp_send((uint8_t*)tx, 10);
+                }
                 if (xQueueReceive(joystick.pos_queue, joystick_pos, 10/portTICK_RATE_MS)) {
                     packet_encoding(PACKET_USER_OPERATION, tx, 0, joystick_pos[0], joystick_pos[1]);
                     ble_spp_send((uint8_t*)tx, 10);
-                    // for (int i = 0; i < 10; i++) {
-                    //     sprintf(monitor+(2*i), "%02x", tx[i]);
-                    // }
-                    // ESP_LOGI(TAG, "%s", monitor);
-                    // ESP_LOGI(TAG, "%d, %d", joystick_pos[0], joystick_pos[1]);
-                    // ble_spp_send((uint8_t*)monitor, 21);
-                }
-                if (xQueueReceive(joystick.btn_queue, &joystick_btn, 10/portTICK_RATE_MS)) {
-                    packet_encoding(PACKET_USER_OPERATION, tx, joystick_btn, joystick_pos[0], joystick_pos[1]);
-                    ble_spp_send((uint8_t*)tx, 10);
-                    // for (int i = 0; i < 10; i++) {
-                    //     sprintf(monitor+(2*i), "%02x", tx[i]);
-                    // }
-                    // ble_spp_send((uint8_t*)monitor, 21);
-                    // ESP_LOGI(TAG, "%d", joystick_btn);
-                    // tx[0] = 'A'+joystick_btn;
-                    // ble_spp_send(tx, 1);
                 }
                 if (xQueueReceive(button_queue, &pairing_btn, 10/portTICK_RATE_MS)) {
                     max17048_led_indicator();
@@ -155,7 +143,9 @@ void app_main(void)
                             ESP_LOGI(TAG, "Disconnection detected!");
                             
                             ble_spp_stop();
-                            work = WORK_IDLE;
+                            // work = WORK_IDLE;
+                            // work = WORK_SCANNING;
+                            esp_restart();
                         } else {
                             xSemaphoreGive(joystick.xSemaphore);
                         }
@@ -189,12 +179,12 @@ void app_main(void)
             case WORK_SLEEP:
                 if (isPairingPressed()) {
                     ESP_LOGI(TAG, "%d", pairing_btn_cnt);
-                    if (++pairing_btn_cnt > 100) {
+                    if (++pairing_btn_cnt > 70) {
                         pairing_btn_cnt = 0;
                         leds_ble_indicator(BLE_INDIC_OFF);
 
-                        // esp_restart();
-                        work = WORK_SCANNING;
+                        esp_restart();
+                        // work = WORK_SCANNING;
                     }
                 } else {
                     pairing_btn_cnt = 0;

@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "driver/uart.h"
 #include "driver/i2c.h"
+#include "driver/adc.h"
 
 #include "esp_bt.h"
 #include "nvs_flash.h"

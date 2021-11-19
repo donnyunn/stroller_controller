@@ -107,11 +107,29 @@ float voltage(void) {
     return (float)data * 78.125f / 1000000.f;
 }
 
+#define SAMPLE_NUM 64
+#define ADC_4V2 2100
+#define ADC_3V4 1300
+#define MIN_MAX_GAP ((ADC_4V2-ADC_3V4)/100)
 uint8_t percent(void) {
-    uint16_t data;
-    max17048_read(REG_SOC, &data);
-    ESP_LOGI(TAG, "data= %04x", data);
-    return (uint8_t)(data / 256);
+    int data = 0;
+    
+    gpio_set_level(GPIO_NUM_5, 1);
+    for (int i = 0; i < SAMPLE_NUM; i++) {
+        data += adc1_get_raw((adc1_channel_t)ADC_CHANNEL_5);
+    }
+    data /= SAMPLE_NUM;
+    gpio_set_level(GPIO_NUM_5, 0);
+    ESP_LOGI(TAG, "data= %d", data);
+    if (data < ADC_3V4) data = ADC_3V4;
+    else if (data > ADC_4V2) data = ADC_4V2;
+    return (uint8_t)((data-ADC_3V4)/MIN_MAX_GAP);
+
+    // uint16_t data;
+    // max17048_read(REG_SOC, &data);
+    // ESP_LOGI(TAG, "data= %04x", data);
+    // return (uint8_t)(data / 256);
+    // return 50;
 }
 
 uint8_t version(void) {
@@ -131,11 +149,11 @@ void max17048_task(void *arg)
         if (!isReady) {
             value = percent();
             ESP_LOGW(TAG, "SOC = %d %%", value);
-            if (value <= 25) {
+            if (value <= 20) {
                 leds_battery_indicator(BATT_25PER);
-            } else if (value <= 50) {
+            } else if (value <= 55) {
                 leds_battery_indicator(BATT_50PER);
-            } else if (value <= 75) {
+            } else if (value <= 90) {
                 leds_battery_indicator(BATT_75PER);
             } else {
                 leds_battery_indicator(BATT_100PER);
@@ -161,17 +179,32 @@ void max17048_led_indicator(void)
 
 void max17048_init(void)
 {
-    uint8_t max17048_version;
-    esp_err_t err;
+    // uint8_t max17048_version;
+    // esp_err_t err;
+    // leds_battery_indicator(BATT_INDICATOR_OFF);
+
+    // err = i2c_master_init();
+    // ESP_LOGI(TAG, "i2c master init err (%d)", err);
+    // max17048_version = version();
+    // ESP_LOGW(TAG, "max17048 version: %02X", max17048_version);
+    // if (max17048_version != 0xff) {
+    //     xTaskCreate(max17048_task, "max17048_task", 2048, (void *) 0, 10, NULL);
+    // } else {
+    //     ESP_LOGE(TAG, "max17048 init fail!!");
+    // }
+
+    gpio_config_t io_conf;
     leds_battery_indicator(BATT_INDICATOR_OFF);
 
-    err = i2c_master_init();
-    ESP_LOGI(TAG, "i2c master init err (%d)", err);
-    max17048_version = version();
-    ESP_LOGW(TAG, "max17048 version: %02X", max17048_version);
-    if (max17048_version != 0xff) {
-        xTaskCreate(max17048_task, "max17048_task", 2048, (void *) 0, 10, NULL);
-    } else {
-        ESP_LOGE(TAG, "max17048 init fail!!");
-    }
+    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_conf.pin_bit_mask = (1ULL << GPIO_NUM_5);
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pull_up_en = 0;
+    io_conf.pull_down_en = 0;
+    gpio_config(&io_conf);
+    gpio_set_level(GPIO_NUM_5, 0);
+
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(ADC_CHANNEL_5, ADC_ATTEN_DB_11);
+    xTaskCreate(max17048_task, "max17048_task", 2048, (void *) 0, 10, NULL);
 }
